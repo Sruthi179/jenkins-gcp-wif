@@ -1,21 +1,24 @@
 pipeline {
     agent any
     environment {
-        PROJECT_ID = 'bilvantisaimlproject'
+        GCP_PROJECT = 'bilvantisaimlproject'
     }
     stages {
         stage('Authenticate with GCP') {
             steps {
                 withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF_CONFIG')]) {
                     script {
-                        // Copy the credential file to a known location
-                        sh 'mkdir -p $WORKSPACE/temp'
-                        sh 'cp $WIF_CONFIG $WORKSPACE/temp/wif-config.json'
-                        
-                        // Authenticate
+                        // Create workspace directory
+                        sh 'mkdir -p $WORKSPACE/config'
+                        // Copy credential file
+                        sh 'cp "$WIF_CONFIG" "$WORKSPACE/config/wif.json"'
+                        // Authenticate and persist
                         sh """
-                            gcloud auth login --cred-file=$WORKSPACE/temp/wif-config.json
-                            export GOOGLE_APPLICATION_CREDENTIALS=$WORKSPACE/temp/wif-config.json
+                            gcloud auth activate-service-account --key-file="$WORKSPACE/config/wif.json"
+                            gcloud config set project $GCP_PROJECT
+                            # Store credentials in gcloud's default location
+                            cp "$WORKSPACE/config/wif.json" "$HOME/gcp_credentials.json"
+                            export GOOGLE_APPLICATION_CREDENTIALS="$WORKSPACE/config/wif.json"
                         """
                     }
                 }
@@ -24,8 +27,10 @@ pipeline {
         stage('List GCP Resources') {
             steps {
                 sh """
-                    gcloud storage buckets list --project=${PROJECT_ID}
-                    // gcloud compute instances list --project=${PROJECT_ID}
+                    # Explicitly use the credentials
+                    gcloud auth activate-service-account --key-file="$WORKSPACE/config/wif.json"
+                    gcloud storage buckets list --project=$GCP_PROJECT
+                    gcloud compute instances list --project=$GCP_PROJECT
                 """
             }
         }
