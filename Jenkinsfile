@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_ID      = 'bilvantisaimlproject' // Replace with your GCP project ID
+        PROJECT_ID      = 'bilvantisaimlproject'
         SERVICE_ACCOUNT = "jenkins-gcp-sa@bilvantisaimlproject.iam.gserviceaccount.com"
         WIF_PROVIDER    = "projects/286895835019/locations/global/workloadIdentityPools/jenkins-pool/providers/jenkins-provider"
     }
@@ -12,9 +12,17 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF_CONFIG')]) {
                     sh '''
-                        echo "Authenticating with Workload Identity Federation..."
+                        echo "Setting GOOGLE_APPLICATION_CREDENTIALS to federated config..."
                         export GOOGLE_APPLICATION_CREDENTIALS=$WIF_CONFIG
-                        gcloud auth application-default login --cred-file=$GOOGLE_APPLICATION_CREDENTIALS
+
+                        echo "Verifying access token retrieval..."
+                        ACCESS_TOKEN=$(gcloud auth application-default print-access-token)
+                        if [ -z "$ACCESS_TOKEN" ]; then
+                          echo "Failed to retrieve access token."
+                          exit 1
+                        else
+                          echo "Access token retrieved successfully."
+                        fi
                     '''
                 }
             }
