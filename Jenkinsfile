@@ -15,7 +15,39 @@ pipeline {
             }
         }
         stage('Authenticate with GCP') {
+            steps {pipeline {
+    agent any
+    environment {
+        PROJECT_ID = 'searce-playground-v1'
+        CREDS_DIR = "${WORKSPACE}/.gcp_creds"
+    }
+    stages {
+        stage('Prepare Environment') {
             steps {
+                sh "mkdir -p ${CREDS_DIR}"
+            }
+        }
+        stage('Authenticate') {
+            steps {
+                withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF')]) {
+                    sh """
+                        cp "$WIF" "${CREDS_DIR}/wif.json"
+                        gcloud auth login --cred-file="${CREDS_DIR}/wif.json"
+                        gcloud config set project ${PROJECT_ID}
+                    """
+                }
+            }
+        }
+        stage('List Resources') {
+            steps {
+                sh """
+                    gcloud container clusters list
+                    gcloud compute instances list
+                """
+            }
+        }
+    }
+}
                 withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF_CONFIG')]) {
                     script {
                         // Copy with explicit permissions
