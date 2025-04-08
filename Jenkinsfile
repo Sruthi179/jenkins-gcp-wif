@@ -22,15 +22,22 @@ pipeline {
                         export GOOGLE_EXTERNAL_ACCOUNT_FILE=$WIF
                         export GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE=${WORKSPACE}/token/key
 
-                        gcloud auth login --brief --cred-file=$GOOGLE_EXTERNAL_ACCOUNT_FILE --quiet
+                        # Debug - check if token file exists
+                        echo "Token file path: $GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE"
+                        ls -l $GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE
 
+                        # Activate credentials using WIF and token
+                        env \
+                          GOOGLE_EXTERNAL_ACCOUNT_FILE=$GOOGLE_EXTERNAL_ACCOUNT_FILE \
+                          GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE=$GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE \
+                          gcloud auth login --brief --cred-file=$GOOGLE_EXTERNAL_ACCOUNT_FILE --quiet
+
+                        # Confirm auth works
                         gcloud container clusters list --project=bilvantisaimlproject
                         gcloud compute instances list --project=bilvantisaimlproject
                     '''
                 }
             }
         }
-
-
     }
 }
