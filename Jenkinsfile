@@ -21,15 +21,15 @@ pipeline {
                     sh '''
                         export GOOGLE_EXTERNAL_ACCOUNT_FILE=$WIF
                         export GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE=${WORKSPACE}/token/key
-        
-                        gcloud auth login --brief --cred-file=$GOOGLE_EXTERNAL_ACCOUNT_FILE --quiet
 
-                        gcloud container clusters list
-                        gcloud compute instances list
-                '''
-                    }
+                        gcloud auth application-default print-access-token --cred-file=$GOOGLE_EXTERNAL_ACCOUNT_FILE
 
+                        gcloud container clusters list --project=your-project-id
+                        gcloud compute instances list --project=your-project-id
+                    '''
+                }
             }
         }
+
     }
 }
