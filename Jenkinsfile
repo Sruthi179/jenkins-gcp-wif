@@ -1,37 +1,70 @@
 pipeline {
-    agent any
-
+    agent {
+        label 'ubuntu-latest'
+    }
+    
+    environment {
+        PROJECT_ID = 'bilvantisaimlproject'
+        WIF_PROVIDER = 'projects/286895835019/locations/global/workloadIdentityPools/jenkins-pool-v2/providers/jenkins-provider-v2'
+    }
+    
     stages {
-        stage("Generating OIDC token and saving it to a file") {
+        stage('Checkout') {
             steps {
-                script {
+                checkout scm
+            }
+        }
+        
+        stage('Install Google Cloud SDK') {
+            steps {
+                sh '''
+                    if ! command -v gcloud &> /dev/null; then
+                        echo "Installing Google Cloud SDK..."
+                        curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-latest-linux-x86_64.tar.gz
+                        tar -xf google-cloud-sdk-latest-linux-x86_64.tar.gz
+                        ./google-cloud-sdk/install.sh --quiet
+                        export PATH=$PATH:$PWD/google-cloud-sdk/bin
+                    else
+                        echo "Google Cloud SDK already installed"
+                    fi
+                '''
+            }
+        }
+        
+        stage('Configure Workload Identity Federation') {
+            steps {
+                withCredentials([string(credentialsId: 'wif-config-file', variable: 'WIF_TOKEN')]) {
                     sh '''
-                        mkdir -p ${WORKSPACE}/token
-                        gcloud auth print-identity-token 286895835019-compute@developer.gserviceaccount.com \
-                          --audiences="//iam.googleapis.com/projects/286895835019/locations/global/workloadIdentityPools/jenkins-pool-v2/providers/jenkins-provider-v2" \
-                          > ${WORKSPACE}/token/key
+                        # Generate OIDC token file
+                        echo $WIF_TOKEN > /tmp/oidc_token.txt
+                        
+                        # Authenticate using Workload Identity Federation
+                        gcloud iam workload-identity-pools create-cred-config ${WIF_PROVIDER} \
+                            --service-account="jenkins-wif-sa-v2@bilvantisaimlproject.iam.gserviceaccount.com" \
+                            --output-file=/tmp/credentials.json \
+                            --credential-source-file=/tmp/oidc_token.txt
+                        
+                        # Authenticate with the generated config
+                        gcloud auth login --cred-file=/tmp/credentials.json
+                        
+                        # Set project
+                        gcloud config set project ${PROJECT_ID}
                     '''
                 }
             }
         }
-
-        stage("Getting the WIF config file into a variable") {
+        
+        stage('List Google Cloud Storage Buckets') {
             steps {
-                withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF')]) {
-                    sh '''
-                        export GOOGLE_EXTERNAL_ACCOUNT_FILE=$WIF
-                        export GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE=${WORKSPACE}/token/key
-
-                        echo Token file path: $GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE
-                        ls -l $GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE
-
-                        gcloud auth application-default print-access-token --cred-file=$GOOGLE_EXTERNAL_ACCOUNT_FILE
-
-                        gcloud container clusters list --project=bilvantisaimlproject
-                        gcloud compute instances list --project=bilvantisaimlproject
-                    '''
-                }
+                sh 'gcloud storage buckets list | grep "name"'
             }
+        }
+    }
+    
+    post {
+        always {
+            sh 'rm -f /tmp/oidc_token.txt /tmp/credentials.json || true'
+            cleanWs()
         }
     }
 }
