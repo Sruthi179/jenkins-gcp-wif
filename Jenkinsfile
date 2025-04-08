@@ -6,9 +6,10 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        mkdir -p ${WORKSPACE}/token
                         gcloud auth print-identity-token 286895835019-compute@developer.gserviceaccount.com \
                           --audiences="//iam.googleapis.com/projects/286895835019/locations/global/workloadIdentityPools/jenkins-pool-v2/providers/jenkins-provider-v2" \
-                          > /usr/share/token/key
+                          > ${WORKSPACE}/token/key
                     '''
                 }
             }
