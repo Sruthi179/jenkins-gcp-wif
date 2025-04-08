@@ -1,21 +1,28 @@
 pipeline {
     agent any
-    environment {
-        GOOGLE_APPLICATION_CREDENTIALS = credentials('WIF_CONFIG')
-    }
+
     stages {
-        stage('Authenticate with GCP') {
+        stage("Generating OIDC token and saving it to a file") {
             steps {
-                sh '''
-                    echo "Authenticating with Workload Identity Federation..."
-                    gcloud auth application-default print-access-token
-                '''
+                script {
+                    sh '''
+                        gcloud auth print-identity-token 286895835019-compute@developer.gserviceaccount.com \
+                          --audiences="//iam.googleapis.com/projects/286895835019/locations/global/workloadIdentityPools/jenkins-pool-v2/providers/jenkins-provider-v2" \
+                          > /usr/share/token/key
+                    '''
+                }
             }
         }
 
-        stage('List GCP Resources') {
+        stage("Getting the WIF config file into a variable") {
             steps {
-                sh 'gcloud projects list'
+                withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF')]) {
+                    sh '''
+                        gcloud auth login --brief --cred-file=$WIF --quiet
+                        gcloud container clusters list
+                        gcloud compute instances list
+                    '''
+                }
             }
         }
     }
