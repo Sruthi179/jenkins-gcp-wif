@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'ubuntu-latest'
-    }
+    agent any  // ✅ This works for your setup
     
     environment {
         PROJECT_ID = 'bilvantisaimlproject'
@@ -35,19 +33,14 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'wif-config-file', variable: 'WIF_TOKEN')]) {
                     sh '''
-                        # Generate OIDC token file
-                        echo $WIF_TOKEN > /tmp/oidc_token.txt
+                        echo "$WIF_TOKEN" > /tmp/oidc_token.txt
                         
-                        # Authenticate using Workload Identity Federation
                         gcloud iam workload-identity-pools create-cred-config ${WIF_PROVIDER} \
                             --service-account="jenkins-wif-sa-v2@bilvantisaimlproject.iam.gserviceaccount.com" \
                             --output-file=/tmp/credentials.json \
                             --credential-source-file=/tmp/oidc_token.txt
                         
-                        # Authenticate with the generated config
-                        gcloud auth login --cred-file=/tmp/credentials.json
-                        
-                        # Set project
+                        gcloud auth login --cred-file=/tmp/credentials.json --quiet
                         gcloud config set project ${PROJECT_ID}
                     '''
                 }
