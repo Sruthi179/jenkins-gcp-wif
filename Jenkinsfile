@@ -19,11 +19,16 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'wif-config-file', variable: 'WIF')]) {
                     sh '''
-                        gcloud auth login --brief --cred-file=$WIF --quiet
+                        export GOOGLE_EXTERNAL_ACCOUNT_FILE=$WIF
+                        export GOOGLE_EXTERNAL_ACCOUNT_TOKEN_FILE=${WORKSPACE}/token/key
+        
+                        gcloud auth login --brief --cred-file=$GOOGLE_EXTERNAL_ACCOUNT_FILE --quiet
+
                         gcloud container clusters list
                         gcloud compute instances list
-                    '''
-                }
+                '''
+                    }
+
             }
         }
     }
