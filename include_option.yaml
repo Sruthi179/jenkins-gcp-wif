@@ -1,0 +1,4 @@
+remote_url:
+  stage: deploy
+  script:
+    - echo "From included Remote File "
